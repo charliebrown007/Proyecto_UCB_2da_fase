@@ -1,37 +1,44 @@
 # =========================================================================================================
 # LIBRERÍAS
-# =========================================================================================================
 
 # Crga de archivos
 import polars as pl
+import polars.selectors as cs
 
 # Medición de tiempo
 import time
 
 # Gestión de ubicaciones y directorios
-from pyprojroot import here
+#from pyprojroot import here
 from pathlib import Path
 
+# Tipado de datos estático (Type Hinting)
+from typing import Optional
+
+
 # =========================================================================================================
-# CARGA DE DATOS
+# 01. CARGA DE DATOS
 # Función de carga de archivo de texto
 
 
-def load_data_own(file_path_param):
+def load_data_own(file_path_param: str) -> Optional[pl.DataFrame]:
 
     print(f'📦 Iniciando carga de datos locales desde: {file_path_param}')
     inicio_tiempo = time.time()
     
     try:
 
-        df = pl.read_csv(
-            source = Path(here(),'00_raw_data', file_path_param),
-            has_header =  True,
-            separator = ',',
-            null_values = ['',' ','NA','na','NULL','null','None','NONE','Na'],
-            encoding = 'utf8',
-            infer_schema = True
+        df = (
+            pl.read_csv(
+                source = (Path(__file__).parent.parent / '00_raw_data' / file_path_param).resolve(),
+                has_header =  True,
+                separator = ',',
+                null_values = ['',' ','NA','na','NULL','null','None','NONE','Na'],
+                encoding = 'utf8',
+                infer_schema = True
             )
+            .pipe(lambda dataframe: dataframe.select(sorted(dataframe.columns)))
+        )
         
         tiempo_carga = time.time() - inicio_tiempo
         print(f"✅ Carga completada: {df.height} registros en {tiempo_carga:.2f} segundos.")
@@ -48,4 +55,70 @@ def load_data_own(file_path_param):
     except Exception as e:
         print(f"❌ Error inesperado: {e}")
         return None
+
+
+# =========================================================================================================
+# 02. LIMPIEZA DE DATOS
+# Función de limpieza de datos
+
+def limpiar_texto_own(column_param) -> pl.Expr:
+
+    return (
+        column_param
+        
+        # 1. Convertir a mayúsculas
+        .str.to_uppercase()
+
+        # 2. Normalizar para separar los
+        # acentos de las letras (Ej: 'á' -> 'a' + '´')
+        .str.normalize('NFD')
+
+        # 3. Borramos acentos, pero NO la colita de la ñ (\u0303)
+        .str.replace_all(r"[\u0300-\u0302\u0304-\u036f]", "")
+        
+        # 4. Eliminar todo lo que NO sea letras, números o espacios
+        #.str.replace_all(r"[^a-z0-9\s]", "")
+        
+        # 5. Reemplazar múltiples espacios por uno solo
+        .str.replace_all(r'\s+', ' ')
+        
+        # 6. Quitar espacios al inicio y al final
+        .str.strip_chars()
+    )
+
+
+# =========================================================================================================
+# 03. LÍNEA BASE DE ANÁLISIS DEL AGENTE
+
+def evaluar_agente(env, agente, num_episodios=1):
+    """
+    Corre la simulación completa para evaluar el rendimiento financiero de un agente.
+    """
+    beneficio_total_historico = []
+    
+    for episodio in range(num_episodios):
+        obs, _ = env.reset()
+        terminado = False
+        recompensa_acumulada = 0
+        dias_con_stockout = 0
+        
+        while not terminado:
+            # El agente toma una decisión basada en su inventario actual
+            accion = agente.predecir(obs)
+            
+            # El entorno procesa la decisión
+            obs, recompensa, terminado, truncado, info = env.step(accion)
+            
+            recompensa_acumulada += recompensa
+            if info['stockout'] > 0:
+                dias_con_stockout += 1
+                
+        beneficio_total_historico.append(recompensa_acumulada)
+        
+        print(f"📊 RESULTADOS DEL EPISODIO {episodio + 1}")
+        print(f"💰 Beneficio Total Generado: ${recompensa_acumulada:,.2f}")
+        print(f"🚨 Días con Quiebre de Stock: {dias_con_stockout} días")
+        print("-" * 50)
+        
+    return beneficio_total_historico
 
