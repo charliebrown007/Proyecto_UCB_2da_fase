@@ -88,7 +88,7 @@ def limpiar_texto_own(column_param) -> pl.Expr:
 
 
 # =========================================================================================================
-# 03. LÍNEA BASE DE ANÁLISIS DEL AGENTE
+# 03. LÍNEA BASE DE ANÁLISIS PARA EL AGENTE
 
 def evaluar_agente(env, agente, num_episodios=1):
     """
