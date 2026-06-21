@@ -90,6 +90,37 @@ def limpiar_texto_own(column_param) -> pl.Expr:
 # =========================================================================================================
 # 03. LÍNEA BASE DE ANÁLISIS PARA EL AGENTE
 
+class AgenteMinMax:
+    """
+    Simula a un administrador de inventarios humano usando una política tradicional (s, S).
+    - s: Punto de Reorden (Si el inventario cae por debajo o igual a 's', se hace pedido).
+    - S: Nivel Máximo (Se pide la cantidad necesaria para acercarse a 'S').
+    """
+    
+    def __init__(self, punto_reorden: int, nivel_maximo: int, unidades_por_caja: int):
+        self.s = punto_reorden
+        self.S = nivel_maximo
+        self.pack = unidades_por_caja
+        
+    def predecir(self, observacion: np.ndarray) -> int:
+        """
+        Dada la observación del entorno (inventario actual), decide cuántas cajas pedir.
+        """
+        inventario_actual = observacion[0]
+        
+        # ¿Es hora de pedir?
+        if inventario_actual <= self.s:
+            # Calculamos cuántas botellas faltan para llegar al tope 'S'
+            botellas_faltantes = self.S - inventario_actual
+            
+            # Convertimos las botellas a CAJAS (redondeando hacia arriba)
+            cajas_a_pedir = int(np.ceil(botellas_faltantes / self.pack))
+            return cajas_a_pedir
+        else:
+            # Si hay suficiente inventario, no pedimos nada (Acción = 0)
+            return 0
+
+
 def evaluar_agente(env, agente, num_episodios=1):
     """
     Corre la simulación completa para evaluar el rendimiento financiero de un agente.
@@ -121,4 +152,3 @@ def evaluar_agente(env, agente, num_episodios=1):
         print("-" * 50)
         
     return beneficio_total_historico
-
