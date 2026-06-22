@@ -17,7 +17,6 @@ from pathlib import Path
 # Tipado de datos estático (Type Hinting)
 from typing import Optional
 
-
 # =========================================================================================================
 # 01. CARGA DE DATOS
 # Función de carga de archivo de texto
