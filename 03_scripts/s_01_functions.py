@@ -167,8 +167,3 @@ class AgenteMinMaxIdeal:
             return min(cajas_a_pedir, 50) # Límite de capacidad del camión
         else:
             return 0
-
-
-class AgenteMinMaxBolivia:
-    """Agente heurístico para el entorno con bloqueos (observa inventario físico + tránsito)"""
-# ... (el resto de tu código original se mantiene igual)
