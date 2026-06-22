@@ -3,9 +3,7 @@
 
 # Manipulación de datos y cálculo numérico
 import polars as pl
-import polars.selectors as cs
 import numpy as np
-
 
 # Medición de tiempo
 import time
