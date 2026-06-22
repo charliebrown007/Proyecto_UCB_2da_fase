@@ -19,7 +19,8 @@ class IowaLiquorEnvIdeal(gym.Env):
         self.capacidad_max = capacidad_max_cajas * self.unidades_por_caja
         
         # Costos estándar de la simulación inicial
-        self.costo_mantenimiento = 0.01  
+        tasa_anual_bcb = 0.06
+        self.costo_mantenimiento = (self.precio_venta * tasa_anual_bcb) / 365  
         self.costo_stockout = 3.50 
 
         # Espacio de acciones: pedir entre 0 y 50 cajas

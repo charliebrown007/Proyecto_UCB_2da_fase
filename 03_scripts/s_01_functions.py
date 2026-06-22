@@ -144,3 +144,31 @@ def evaluar_agente(env, agente, num_episodios=1):
         print("-" * 50)
         
     return beneficio_total_historico
+
+
+
+# =========================================================================================================
+# 03. LÍNEA BASE DE ANÁLISIS PARA EL AGENTE
+
+class AgenteMinMaxIdeal:
+    """Agente heurístico para el entorno ideal (solo observa inventario físico)"""
+    def __init__(self, punto_reorden: int, nivel_maximo: int, unidades_por_caja: int):
+        self.s = punto_reorden
+        self.S = nivel_maximo
+        self.pack = unidades_por_caja
+        
+    def predecir(self, observacion: np.ndarray) -> int:
+        # El entorno ideal solo devuelve [inventario_fisico]
+        inventario_fisico = observacion[0]
+        
+        if inventario_fisico <= self.s:
+            botellas_faltantes = self.S - inventario_fisico
+            cajas_a_pedir = int(np.ceil(botellas_faltantes / self.pack))
+            return min(cajas_a_pedir, 50) # Límite de capacidad del camión
+        else:
+            return 0
+
+
+class AgenteMinMaxBolivia:
+    """Agente heurístico para el entorno con bloqueos (observa inventario físico + tránsito)"""
+# ... (el resto de tu código original se mantiene igual)
