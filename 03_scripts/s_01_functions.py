@@ -92,34 +92,24 @@ def limpiar_texto_own(column_param) -> pl.Expr:
 # =========================================================================================================
 # 03. LÍNEA BASE DE ANÁLISIS PARA EL AGENTE
 
-class AgenteMinMax:
-    """
-    Simula a un administrador de inventarios humano usando una política tradicional (s, S).
-    - s: Punto de Reorden (Si el inventario cae por debajo o igual a 's', se hace pedido).
-    - S: Nivel Máximo (Se pide la cantidad necesaria para acercarse a 'S').
-    """
-    
+class AgenteMinMaxBolivia:
     def __init__(self, punto_reorden: int, nivel_maximo: int, unidades_por_caja: int):
         self.s = punto_reorden
         self.S = nivel_maximo
         self.pack = unidades_por_caja
         
     def predecir(self, observacion: np.ndarray) -> int:
-        """
-        Dada la observación del entorno (inventario actual), decide cuántas cajas pedir.
-        """
-        inventario_actual = observacion[0]
+        inventario_fisico = observacion[0]
+        inventario_en_transito = observacion[1]
         
-        # ¿Es hora de pedir?
-        if inventario_actual <= self.s:
-            # Calculamos cuántas botellas faltan para llegar al tope 'S'
-            botellas_faltantes = self.S - inventario_actual
-            
-            # Convertimos las botellas a CAJAS (redondeando hacia arriba)
+        # El agente humano suma lo que tiene y lo que viene en camino
+        posicion_inventario = inventario_fisico + inventario_en_transito
+        
+        if posicion_inventario <= self.s:
+            botellas_faltantes = self.S - posicion_inventario
             cajas_a_pedir = int(np.ceil(botellas_faltantes / self.pack))
-            return cajas_a_pedir
+            return min(cajas_a_pedir, 50) # No podemos superar la capacidad del camión
         else:
-            # Si hay suficiente inventario, no pedimos nada (Acción = 0)
             return 0
 
 
