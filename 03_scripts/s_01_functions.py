@@ -11,7 +11,7 @@ import numpy as np
 import time
 
 # Gestión de ubicaciones y directorios
-#from pyprojroot import here
+from pyprojroot import here
 from pathlib import Path
 
 # Tipado de datos estático (Type Hinting)
@@ -32,7 +32,7 @@ def load_data_own(file_path_param: str) -> Optional[pl.DataFrame]:
 
         df = (
             pl.read_csv(
-                source = (Path(__file__).parent.parent / '00_raw_data' / file_path_param).resolve(),
+                source = Path(here(),'00_raw_data',file_path_param),
                 has_header =  True,
                 separator = ',',
                 null_values = ['',' ','NA','na','NULL','null','None','NONE','Na'],
