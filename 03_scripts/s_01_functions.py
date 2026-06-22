@@ -60,7 +60,7 @@ def load_data_own(file_path_param: str) -> Optional[pl.DataFrame]:
 # 02. LIMPIEZA DE DATOS
 # Función de limpieza de datos
 
-def limpiar_texto_own(column_param) -> pl.Expr:
+def limpiar_texto_own(column_param: str) -> pl.Expr:
 
     return (
         column_param
