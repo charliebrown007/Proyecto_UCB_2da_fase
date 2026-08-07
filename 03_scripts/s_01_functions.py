@@ -1,31 +1,23 @@
 # =========================================================================================================
 # LIBRERÍAS
 
-# Manipulación de datos y cálculo numérico
-import polars as pl
-import numpy as np
-
 # Medición de tiempo
 import time
 
-# Gestión de ubicaciones y directorios
-from pyprojroot import here
+# Gestión de directorios
 from pathlib import Path
 
-# Tipado de datos estático (Type Hinting)
-from typing import Optional
-
-# Ambiente de pruebas
-import gymnasium as gym
-from gymnasium import spaces
+# Manipulación de datos
+import polars as pl
+from pyprojroot import here
 
 # =========================================================================================================
 # 01. CARGA DE DATOS
 # Función de carga de archivo de texto
 
-def load_data_own(file_path_param: str) -> Optional[pl.DataFrame]:
+def load_data_own(file_path_param: str) -> pl.DataFrame | None:
 
-    print(f'📦 Iniciando carga de datos locales desde: {file_path_param}')
+    print(f'Iniciando carga de datos locales desde: {file_path_param}')
     inicio_tiempo = time.time()
     
     try:
@@ -43,7 +35,7 @@ def load_data_own(file_path_param: str) -> Optional[pl.DataFrame]:
         )
         
         tiempo_carga = time.time() - inicio_tiempo
-        print(f"✅ Carga completada: {df.height} registros en {tiempo_carga:.2f} segundos.")
+        print(f'Carga completada: {df.height} registros en {tiempo_carga:.2f} segundos.')
         
         return df
 
@@ -54,10 +46,9 @@ def load_data_own(file_path_param: str) -> Optional[pl.DataFrame]:
     except pl.exceptions.PolarsError as e:
         print(f"❌ Error de Polars al procesar el CSV: {e}")
         return None
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001
         print(f"❌ Error inesperado: {e}")
         return None
-
 
 # =========================================================================================================
 # 02. LIMPIEZA DE DATOS
@@ -76,7 +67,7 @@ def limpiar_texto_own(column_param: str) -> pl.Expr:
         .str.normalize('NFD')
 
         # 3. Borramos acentos, pero NO la colita de la ñ (\u0303)
-        .str.replace_all(r"[\u0300-\u0302\u0304-\u036f]", "")
+        .str.replace_all('[\\u0300-\\u0302\\u0304-\\u036f]', '')
         
         # 4. Eliminar todo lo que NO sea letras, números o espacios
         #.str.replace_all(r"[^a-z0-9\s]", "")
