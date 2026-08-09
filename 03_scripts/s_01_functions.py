@@ -7,6 +7,7 @@ import time
 # Gestión de directorios
 from pathlib import Path
 
+# pyrefly: ignore [missing-import]
 import numpy as np
 
 # Manipulación de datos
@@ -84,14 +85,13 @@ def limpiar_texto_own(column_param: str) -> pl.Expr:
 # =========================================================================================================
 # 03. MODELO DE LA CANTIDAD ECONÓMICA DEL PEDIDO (BASELINE EOQ).
 
-def calcular_eoq_baseline(
+def eoq_baseline(
     df_demanda: pl.DataFrame, 
     df_precio: pl.DataFrame, 
     dias_simulacion: int = 150, 
     dias_year: int = 365, 
     costo_pedido_S: float = 50.0, 
-    tasa_mantenimiento_i: float = 0.20
-) -> float:
+    tasa_mantenimiento_i: float = 0.20 ) -> float:
     '''
     Calcula la Cantidad Económica de Pedido (EOQ) ajustada a lotes (cajas) 
     para establecer el modelo base (baseline) de la simulación.
@@ -135,7 +135,7 @@ def calcular_eoq_baseline(
     print(f'Costo de Mantenimiento Anual (H) : ${costo_mantenimiento_H:,.2f} por botella')
     print(f'Costo Fijo por Pedido (S)        : ${costo_pedido_S:,.2f}')
     print(f'EOQ Óptimo Teórico               : {eoq_botellas:,.0f} botellas')
-    print(f'EOQ Ajustado a Lotes (Acción)    : {eoq_cajas:,.0f} cajas (packs de {tamano_pack})')
+    print(f'EOQ Ajustado a Lotes (Acción)    : {eoq_cajas:,.0f} cajas (packs de {size_pack})')
     print('-' * 55)
     
     return eoq_cajas
