@@ -7,6 +7,8 @@ import time
 # Gestión de directorios
 from pathlib import Path
 
+import numpy as np
+
 # Manipulación de datos
 import polars as pl
 from pyprojroot import here
@@ -79,3 +81,61 @@ def limpiar_texto_own(column_param: str) -> pl.Expr:
         .str.strip_chars()
     )
 
+# =========================================================================================================
+# 03. MODELO DE LA CANTIDAD ECONÓMICA DEL PEDIDO (BASELINE EOQ).
+
+def calcular_eoq_baseline(
+    df_demanda: pl.DataFrame, 
+    df_precio: pl.DataFrame, 
+    dias_simulacion: int = 150, 
+    dias_year: int = 365, 
+    costo_pedido_S: float = 50.0, 
+    tasa_mantenimiento_i: float = 0.20
+) -> float:
+    '''
+    Calcula la Cantidad Económica de Pedido (EOQ) ajustada a lotes (cajas) 
+    para establecer el modelo base (baseline) de la simulación.
+    
+    Parámetros:
+    - df_demanda (pl.DataFrame): DataFrame con la demanda histórica diaria.
+    - df_precio (pl.DataFrame): DataFrame con el precio medio y el tamaño del pack.
+    - dias_simulacion (int): Días totales del horizonte de datos.
+    - dias_ano (int): Días base para la anualización.
+    - costo_pedido_S (float): Costo fijo por emitir una orden ($).
+    - tasa_mantenimiento_i (float): Porcentaje anual del valor del producto para costo de inventario.
+    
+    Retorna:
+    - float: Cantidad de cajas a pedir sugerida por el modelo EOQ.
+    '''
+    
+    # 1. Extraer datos reales del producto desde los DataFrames
+    demanda_total_periodo = df_demanda['demanda_diaria'].sum()
+    precio_unitario_C = df_precio['precio_medio'][0]
+    
+    # Extraer el tamaño del pack (manejando el caso en el que venga dentro de una lista de Polars)
+    size_pack = df_precio['pack'][0]
+    if isinstance(size_pack, (list, pl.Series)):
+        size_pack = size_pack[0]
+        
+    # 2. Calcular los componentes del EOQ
+    demanda_anual_D = (demanda_total_periodo / dias_simulacion) * dias_year
+    costo_mantenimiento_H = precio_unitario_C * tasa_mantenimiento_i
+
+    # 3. Aplicar la fórmula matemática
+    eoq_botellas = np.sqrt((2 * demanda_anual_D * costo_pedido_S) / costo_mantenimiento_H)
+
+    # 4. Convertir a la acción real del entorno (Cajas/Packs a pedir)
+    eoq_cajas = np.round(eoq_botellas / size_pack)
+
+    # 5. Imprimir resultados formateados
+    print('-' * 55)
+    print('RESULTADOS DEL MODELO BASE (EOQ)')
+    print('-' * 55)
+    print(f'Demanda Anual Estimada (D)       : {demanda_anual_D:,.0f} botellas')
+    print(f'Costo de Mantenimiento Anual (H) : ${costo_mantenimiento_H:,.2f} por botella')
+    print(f'Costo Fijo por Pedido (S)        : ${costo_pedido_S:,.2f}')
+    print(f'EOQ Óptimo Teórico               : {eoq_botellas:,.0f} botellas')
+    print(f'EOQ Ajustado a Lotes (Acción)    : {eoq_cajas:,.0f} cajas (packs de {tamano_pack})')
+    print('-' * 55)
+    
+    return eoq_cajas
