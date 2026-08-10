@@ -1,5 +1,5 @@
 # =========================================================================================================
-# LIBRERÍAS
+# 01. LIBRERÍAS
 
 # Medición de tiempo
 import time
@@ -15,7 +15,7 @@ import polars as pl
 from pyprojroot import here
 
 # =========================================================================================================
-# 01. CARGA DE DATOS
+# 02. CARGA DE DATOS
 # Función de carga de archivo de texto
 
 def load_data_own(file_path_param: str) -> pl.DataFrame | None:
@@ -54,7 +54,7 @@ def load_data_own(file_path_param: str) -> pl.DataFrame | None:
         return None
 
 # =========================================================================================================
-# 02. LIMPIEZA DE DATOS
+# 03. LIMPIEZA DE DATOS
 # Función de limpieza de datos
 
 def limpiar_texto_own(column_param: str) -> pl.Expr:
@@ -83,7 +83,7 @@ def limpiar_texto_own(column_param: str) -> pl.Expr:
     )
 
 # =========================================================================================================
-# 03. MODELO DE LA CANTIDAD ECONÓMICA DEL PEDIDO (BASELINE EOQ).
+# 04. MODELO DE LA CANTIDAD ECONÓMICA DEL PEDIDO (BASELINE EOQ).
 
 def eoq_baseline(
     df_demanda: pl.DataFrame, 
