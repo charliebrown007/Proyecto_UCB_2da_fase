@@ -1,10 +1,12 @@
 # =========================================================================================================
 # 01. LIBRERÍAS
 
+# pyrefly: ignore [missing-import]
 import gymnasium as gym
-from gymnasium import spaces
 import numpy as np
 
+# pyrefly: ignore [missing-import]
+from gymnasium import spaces
 
 # =========================================================================================================
 # 02. ENTORNO PERSONALIZADO
@@ -16,7 +18,7 @@ class EntornoInventario(gym.Env):
     """
     
     def __init__(self, df_demanda, precio_unitario, tamano_pack, max_cajas_pedido = 100):
-        super(EntornoInventario, self).__init__()
+        super().__init__()
         
         # 1. Carga de Datos y Constantes (Placeholders financieros)
         self.demanda_diaria = df_demanda['demanda_diaria'].to_numpy()
@@ -48,18 +50,18 @@ class EntornoInventario(gym.Env):
         self.inventario = 0
         self.pedidos_en_transito = []
 
-    def reset(self, seed=None, options=None):
+    def reset(self, seed = None, options = None):
         """
         Reinicia el entorno al día 0. Se ejecuta al inicio de cada episodio.
         """
-        super().reset(seed=seed)
+        super().reset(seed = seed)
         
         self.dia_actual = 0
         self.inventario = 0  # Se puede iniciar con un inventario inicial de seguridad
         self.pedidos_en_transito = []
         
         # Devolver el estado inicial y un diccionario vacío de información
-        estado_inicial = np.array([self.inventario], dtype=np.float32)
+        estado_inicial = np.array([self.inventario], dtype = np.float32)
         return estado_inicial, {}
 
     def step(self, action):
