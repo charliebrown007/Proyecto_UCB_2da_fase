@@ -1,28 +1,32 @@
 # =========================================================================================================
 # 01. LIBRERÍAS
 
-# pyrefly: ignore [missing-import]
 import gymnasium as gym
 import numpy as np
-
-# pyrefly: ignore [missing-import]
+import polars as pl
 from gymnasium import spaces
 
 # =========================================================================================================
 # 02. ENTORNO PERSONALIZADO
 
 class EntornoInventario(gym.Env):
-    """
+    '''
     Entorno de simulación logística para Aprendizaje por Refuerzo.
     Representa un Proceso de Decisión de Markov (MDP) diario.
-    """
+    '''
     
-    def __init__(self, df_demanda, precio_unitario, tamano_pack, max_cajas_pedido = 100):
+    def __init__(self,
+                 df_demanda: pl.DataFrame,
+                 precio_unitario: float,
+                 tamano_pack: int,
+                 max_cajas_pedido: int = 100,
+                 ventana_historica: int = 7):
         super().__init__()
         
-        # 1. Carga de Datos y Constantes (Placeholders financieros)
+        # 1. Carga de Datos y Constantes
         self.demanda_diaria = df_demanda['demanda_diaria'].to_numpy()
         self.dias_totales = len(self.demanda_diaria)
+        self.ventana_historica = ventana_historica
         
         self.p = precio_unitario        # Precio de venta por botella
         self.pack = tamano_pack         # Botellas por caja
@@ -32,43 +36,45 @@ class EntornoInventario(gym.Env):
         self.L = 3                      # Lead time (Días en que tarda en llegar el pedido)
         
         # 2. Espacio de Acciones (Action Space)
-        # El agente decide cuántas cajas pedir: 0, 1, 2, ..., max_cajas_pedido
         self.action_space = spaces.Discrete(max_cajas_pedido + 1)
         
         # 3. Espacio de Observación (Observation Space)
-        # Definimos los límites [mínimo, máximo] de las variables que "ve" el agente
-        # Por ahora: [Nivel de inventario actual]
-        # (Se ampliará en el futuro con más variables como días de la semana, etc.)
+        # Tamaño: 1 (inventario) + ventana_historica (ej. 7 días de demanda) = 8 variables continuas
         self.observation_space = spaces.Box(
-            low=np.array([0], dtype=np.float32),
-            high=np.array([np.inf], dtype=np.float32),
-            dtype=np.float32
-        )
+            low = 0.0,
+            high = np.inf,
+            shape = (1 + self.ventana_historica,),
+            dtype = np.float32 )
         
         # Variables de estado interno
         self.dia_actual = 0
         self.inventario = 0
         self.pedidos_en_transito = []
+        self.historial_demanda = np.zeros(self.ventana_historica, dtype=np.float32)
 
     def reset(self, seed = None, options = None):
-        """
+        '''
         Reinicia el entorno al día 0. Se ejecuta al inicio de cada episodio.
-        """
+        '''
         super().reset(seed = seed)
         
         self.dia_actual = 0
-        self.inventario = 0  # Se puede iniciar con un inventario inicial de seguridad
+        self.inventario = 0  
         self.pedidos_en_transito = []
         
-        # Devolver el estado inicial y un diccionario vacío de información
-        estado_inicial = np.array([self.inventario], dtype = np.float32)
+        # Reiniciar el historial de demanda con ceros
+        self.historial_demanda = np.zeros(self.ventana_historica, dtype=np.float32)
+        
+        # El estado inicial es el inventario concatenado con el historial de demanda
+        estado_inicial = np.concatenate(([self.inventario], self.historial_demanda)).astype(np.float32)
+        
         return estado_inicial, {}
-
+        
     def step(self, action):
-        """
+        '''
         Ejecuta la acción del agente, calcula ventas, costos y avanza al siguiente día.
-        """
-        # 1. Recibir pedidos que llegaron hoy (según el Lead Time)
+        '''
+        # 1. Recibir pedidos que llegaron hoy
         botellas_recibidas = self._procesar_pedidos_en_transito()
         self.inventario += botellas_recibidas
         
@@ -88,6 +94,11 @@ class EntornoInventario(gym.Env):
         # Actualizar inventario tras las ventas
         self.inventario -= ventas_hoy
         
+        # --- ACTUALIZACIÓN DE LA VENTANA HISTÓRICA ---
+        # np.roll desplaza todos los elementos a la izquierda y el último espacio recibe la demanda de hoy
+        self.historial_demanda = np.roll(self.historial_demanda, -1)
+        self.historial_demanda[-1] = demanda_hoy
+        
         # 4. Calcular la Recompensa (Rentabilidad Neta)
         ingresos = ventas_hoy * self.p
         costo_mantenimiento = self.inventario * self.h
@@ -98,12 +109,11 @@ class EntornoInventario(gym.Env):
         # 5. Avanzar el tiempo y verificar si el episodio terminó
         self.dia_actual += 1
         terminado = bool(self.dia_actual >= self.dias_totales)
-        truncado = False # Se usa si hay límites de tiempo artificiales
+        truncado = False
         
-        # Siguiente estado
-        siguiente_estado = np.array([self.inventario], dtype=np.float32)
+        # --- SIGUIENTE ESTADO ---
+        siguiente_estado = np.concatenate(([self.inventario], self.historial_demanda)).astype(np.float32)
         
-        # Diccionario para guardar métricas adicionales útiles para tus gráficos
         info = {
             'ventas': ventas_hoy,
             'quiebre': demanda_insatisfecha,
@@ -113,7 +123,7 @@ class EntornoInventario(gym.Env):
         return siguiente_estado, recompensa, terminado, truncado, info
 
     def _procesar_pedidos_en_transito(self):
-        """Método auxiliar interno para gestionar el Lead Time."""
+        '''Método auxiliar interno para gestionar el Lead Time.'''
         recibidos_hoy = 0
         pedidos_actualizados = []
         
