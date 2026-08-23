@@ -1,6 +1,7 @@
 from pathlib import Path
 
 # 1. Definir la estructura
+
 directories = [
     '00_raw_data',
     '01_cleaned_data',
@@ -8,8 +9,7 @@ directories = [
     '03_scripts',
     '04_tables',
     '05_graphs',
-    '06_quarto'
-]
+    '06_quarto' ]
 
 # 2. Crear las carpetas
 for folder in directories:
