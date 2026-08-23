@@ -20,26 +20,27 @@ class EntornoInventario(gym.Env):
                  precio_unitario: float,
                  tamano_pack: int,
                  max_cajas_pedido: int = 100,
-                 ventana_historica: int = 7):
+                 ventana_historica: int = 7,
+                 max_capacidad_almacen: int = 3000):
         super().__init__()
         
         # 1. Carga de Datos y Constantes
         self.demanda_diaria = df_demanda['demanda_diaria'].to_numpy()
         self.dias_totales = len(self.demanda_diaria)
         self.ventana_historica = ventana_historica
+        self.max_capacidad = max_capacidad_almacen 
         
-        self.p = precio_unitario        # Precio de venta por botella
-        self.pack = tamano_pack         # Botellas por caja
-        self.S = 50.0                   # Costo fijo por pedido (Ordering Cost)
-        self.h = 0.20                   # Costo de mantenimiento diario por botella (Holding Cost)
-        self.k = 2.0                    # Penalización por botella no vendida (Stockout Cost)
-        self.L = 3                      # Lead time (Días en que tarda en llegar el pedido)
+        self.p = precio_unitario        
+        self.pack = tamano_pack         
+        self.S = 50.0                   
+        self.h = 0.20                   
+        self.k = 2.0                    
+        self.L = 3                      
         
-        # 2. Espacio de Acciones (Action Space)
+        # 2. Espacio de Acciones
         self.action_space = spaces.Discrete(max_cajas_pedido + 1)
         
-        # 3. Espacio de Observación (Observation Space)
-        # Tamaño: 1 (inventario) + ventana_historica (ej. 7 días de demanda) = 8 variables continuas
+        # 3. Espacio de Observación
         self.observation_space = spaces.Box(
             low = 0.0,
             high = np.inf,
@@ -53,32 +54,20 @@ class EntornoInventario(gym.Env):
         self.historial_demanda = np.zeros(self.ventana_historica, dtype=np.float32)
 
     def reset(self, seed = None, options = None):
-        '''
-        Reinicia el entorno al día 0. Se ejecuta al inicio de cada episodio.
-        '''
         super().reset(seed = seed)
-        
         self.dia_actual = 0
         self.inventario = 0  
         self.pedidos_en_transito = []
-        
-        # Reiniciar el historial de demanda con ceros
         self.historial_demanda = np.zeros(self.ventana_historica, dtype=np.float32)
-        
-        # El estado inicial es el inventario concatenado con el historial de demanda
         estado_inicial = np.concatenate(([self.inventario], self.historial_demanda)).astype(np.float32)
-        
         return estado_inicial, {}
         
     def step(self, action):
-        '''
-        Ejecuta la acción del agente, calcula ventas, costos y avanza al siguiente día.
-        '''
         # 1. Recibir pedidos que llegaron hoy
         botellas_recibidas = self._procesar_pedidos_en_transito()
         self.inventario += botellas_recibidas
         
-        # 2. Registrar el nuevo pedido emitido hoy por el agente
+        # 2. Registrar el nuevo pedido
         botellas_pedidas = action * self.pack
         if botellas_pedidas > 0:
             self.pedidos_en_transito.append({'dias_faltantes': self.L, 'cantidad': botellas_pedidas})
@@ -86,32 +75,39 @@ class EntornoInventario(gym.Env):
         else:
             costo_orden = 0.0
             
-        # 3. Observar la demanda del día y calcular ventas
+        # 3. Ventas y Quiebres
         demanda_hoy = self.demanda_diaria[self.dia_actual]
         ventas_hoy = min(self.inventario, demanda_hoy)
         demanda_insatisfecha = demanda_hoy - ventas_hoy
-        
-        # Actualizar inventario tras las ventas
         self.inventario -= ventas_hoy
         
+        # --- NUEVA REGLA: RESTRICCIÓN FÍSICA ---
+        # Si el inventario supera la capacidad del almacén, hay un desbordamiento.
+        exceso_inventario = max(0, self.inventario - self.max_capacidad)
+        if exceso_inventario > 0:
+            # El exceso se asume como producto dañado, devuelto o almacenado externamente a un costo muy alto
+            costo_exceso = exceso_inventario * (self.p * 0.5) 
+            self.inventario = self.max_capacidad # Truncamos el inventario físico al máximo permitido
+        else:
+            costo_exceso = 0.0
+
         # --- ACTUALIZACIÓN DE LA VENTANA HISTÓRICA ---
-        # np.roll desplaza todos los elementos a la izquierda y el último espacio recibe la demanda de hoy
         self.historial_demanda = np.roll(self.historial_demanda, -1)
         self.historial_demanda[-1] = demanda_hoy
         
-        # 4. Calcular la Recompensa (Rentabilidad Neta)
+        # --- NUEVA REGLA: REWARD SHAPING (COSTO NO LINEAL) ---
+        # Penalizamos el almacenamiento con una curva exponencial (x^1.15). 
+        # A mayor inventario, el costo por botella crece agresivamente.
         ingresos = ventas_hoy * self.p
-        costo_mantenimiento = self.inventario * self.h
+        costo_mantenimiento = (self.inventario ** 1.15) * self.h 
         costo_quiebre = demanda_insatisfecha * self.k
         
-        recompensa = ingresos - costo_orden - costo_mantenimiento - costo_quiebre
+        recompensa = ingresos - costo_orden - costo_mantenimiento - costo_quiebre - costo_exceso
         
-        # 5. Avanzar el tiempo y verificar si el episodio terminó
         self.dia_actual += 1
         terminado = bool(self.dia_actual >= self.dias_totales)
         truncado = False
         
-        # --- SIGUIENTE ESTADO ---
         siguiente_estado = np.concatenate(([self.inventario], self.historial_demanda)).astype(np.float32)
         
         info = {
@@ -123,16 +119,13 @@ class EntornoInventario(gym.Env):
         return siguiente_estado, recompensa, terminado, truncado, info
 
     def _procesar_pedidos_en_transito(self):
-        '''Método auxiliar interno para gestionar el Lead Time.'''
         recibidos_hoy = 0
         pedidos_actualizados = []
-        
         for pedido in self.pedidos_en_transito:
             pedido['dias_faltantes'] -= 1
             if pedido['dias_faltantes'] <= 0:
                 recibidos_hoy += pedido['cantidad']
             else:
                 pedidos_actualizados.append(pedido)
-                
         self.pedidos_en_transito = pedidos_actualizados
         return recibidos_hoy
