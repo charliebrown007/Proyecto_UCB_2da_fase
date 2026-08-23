@@ -31,7 +31,7 @@ class EntornoInventario(gym.Env):
         self.p = precio_unitario        # Precio de venta por botella
         self.pack = tamano_pack         # Botellas por caja
         self.S = 50.0                   # Costo fijo por pedido (Ordering Cost)
-        self.h = 0.01                   # Costo de mantenimiento diario por botella (Holding Cost)
+        self.h = 0.20                   # Costo de mantenimiento diario por botella (Holding Cost)
         self.k = 2.0                    # Penalización por botella no vendida (Stockout Cost)
         self.L = 3                      # Lead time (Días en que tarda en llegar el pedido)
         
