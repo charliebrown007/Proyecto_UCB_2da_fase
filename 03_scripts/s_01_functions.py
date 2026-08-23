@@ -88,7 +88,6 @@ def limpiar_texto_own(column_param: str) -> pl.Expr:
 def eoq_baseline(
     df_demanda: pl.DataFrame, 
     df_precio: pl.DataFrame, 
-    dias_simulacion: int = 150, 
     dias_year: int = 365, 
     costo_pedido_S: float = 50.0, 
     tasa_mantenimiento_i: float = 0.20 ) -> float:
@@ -99,7 +98,6 @@ def eoq_baseline(
     Parámetros:
     - df_demanda (pl.DataFrame): DataFrame con la demanda histórica diaria.
     - df_precio (pl.DataFrame): DataFrame con el precio medio y el tamaño del pack.
-    - dias_simulacion (int): Días totales del horizonte de datos.
     - dias_ano (int): Días base para la anualización.
     - costo_pedido_S (float): Costo fijo por emitir una orden ($).
     - tasa_mantenimiento_i (float): Porcentaje anual del valor del producto para costo de inventario.
@@ -118,6 +116,10 @@ def eoq_baseline(
         size_pack = size_pack[0]
         
     # 2. Calcular los componentes del EOQ
+
+    # dias_simulacion (int): Días totales del horizonte de datos.
+    dias_simulacion = df_demanda.height
+    
     demanda_anual_D = (demanda_total_periodo / dias_simulacion) * dias_year
     costo_mantenimiento_H = precio_unitario_C * tasa_mantenimiento_i
 
@@ -125,7 +127,9 @@ def eoq_baseline(
     eoq_botellas = np.sqrt((2 * demanda_anual_D * costo_pedido_S) / costo_mantenimiento_H)
 
     # 4. Convertir a la acción real del entorno (Cajas/Packs a pedir)
-    eoq_cajas = np.round(eoq_botellas / size_pack)
+    # No se pueden pedir fracciones de packs, entonces se
+    # redondeará al inmmediato superior
+    eoq_cajas = np.ceil(eoq_botellas / size_pack)
 
     # 5. Imprimir resultados formateados
     print('-' * 55)
