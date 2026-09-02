@@ -7,7 +7,7 @@ import polars as pl
 from gymnasium import spaces
 
 # =========================================================================================================
-# 02. ENTORNO PERSONALIZADO (v4.0 - Contexto Temporal)
+# 02. ENTORNO PERSONALIZADO (v5.0 - Lead Time Estocástico / Escenario Boliviano)
 
 class EntornoInventario(gym.Env):
     def __init__(self,
@@ -21,7 +21,6 @@ class EntornoInventario(gym.Env):
         
         # 1. Carga de Datos y Constantes
         self.demanda_diaria = df_demanda['demanda_diaria'].to_numpy()
-        # NUEVO: Cargamos el arreglo de días de la semana
         self.dia_semana = df_demanda['dia_semana'].to_numpy() 
         self.dias_totales = len(self.demanda_diaria)
         
@@ -33,13 +32,10 @@ class EntornoInventario(gym.Env):
         self.S = 50.0                   
         self.h = 0.20                   
         self.k = 2.0                    
-        self.L = 3                      
+        # Ya no usamos self.L fijo, lo calcularemos dinámicamente en cada paso
         
-        # 2. Espacio de Acciones
+        # 2. Espacios de Acción y Observación
         self.action_space = spaces.Discrete(max_cajas_pedido + 1)
-        
-        # 3. Espacio de Observación
-        # NUEVO: Añadimos +1 al espacio para incluir el día de la semana actual
         self.observation_space = spaces.Box(
             low = 0.0,
             high = np.inf,
@@ -58,7 +54,6 @@ class EntornoInventario(gym.Env):
         self.pedidos_en_transito = []
         self.historial_demanda = np.zeros(self.ventana_historica, dtype=np.float32)
         
-        # NUEVO: El estado inicial ahora incluye el día de la semana en la última posición
         estado_inicial = np.concatenate((
             [self.inventario], 
             self.historial_demanda, 
@@ -71,13 +66,21 @@ class EntornoInventario(gym.Env):
         botellas_recibidas = self._procesar_pedidos_en_transito()
         self.inventario += botellas_recibidas
         
+        # --- NUEVA REGLA: LEAD TIME ESTOCÁSTICO (Simulación de Bloqueos) ---
         botellas_pedidas = action * self.pack
         if botellas_pedidas > 0:
-            self.pedidos_en_transito.append({'dias_faltantes': self.L, 'cantidad': botellas_pedidas})
+            # Definimos probabilidades basadas en un escenario logístico real:
+            # 70% de las veces llega normal (3 días)
+            # 20% de las veces hay demoras menores o clima (5 días)
+            # 10% de las veces hay un bloqueo severo en carretera (8 días)
+            tiempo_entrega_real = np.random.choice([3, 5, 8], p=[0.70, 0.20, 0.10])
+            
+            self.pedidos_en_transito.append({'dias_faltantes': tiempo_entrega_real, 'cantidad': botellas_pedidas})
             costo_orden = self.S
         else:
             costo_orden = 0.0
             
+        # Ventas y Quiebres
         demanda_hoy = self.demanda_diaria[self.dia_actual]
         ventas_hoy = min(self.inventario, demanda_hoy)
         demanda_insatisfecha = demanda_hoy - ventas_hoy
@@ -105,7 +108,6 @@ class EntornoInventario(gym.Env):
         terminado = bool(self.dia_actual >= self.dias_totales)
         truncado = False
         
-        # NUEVO: Extraemos el día de la semana para el estado de mañana
         dia_siguiente = self.dia_semana[self.dia_actual] if not terminado else 0
         
         siguiente_estado = np.concatenate((
