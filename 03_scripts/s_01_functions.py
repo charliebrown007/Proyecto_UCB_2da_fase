@@ -55,7 +55,7 @@ def load_data_own(file_path_param: str) -> pl.DataFrame | None:
 # 03. LIMPIEZA DE DATOS
 # Función de limpieza de datos
 
-def limpiar_texto_own(column_param: str) -> pl.Expr:
+def limpiar_texto_own(*, column_param: pl.Expr) -> pl.Expr:
 
     return (
         column_param
@@ -69,12 +69,12 @@ def limpiar_texto_own(column_param: str) -> pl.Expr:
 
         # 3. Borramos acentos, pero NO la línea de la ñ (\u0303)
         .str.replace_all('[\\u0300-\\u0302\\u0304-\\u036f]', '')
-        
-        # 4. Eliminar todo lo que NO sea letras, números o espacios
-        #.str.replace_all(r"[^a-z0-9\s]", "")
-        
+
+        # 4. Recomponer caracteres a estándar Unicode (e.g. 'N' + '~' -> 'Ñ')
+        .str.normalize('NFC')
+
         # 5. Reemplazar múltiples espacios por uno solo
-        .str.replace_all('\\s+', '\\s')
+        .str.replace_all('\\s+', ' ')
         
         # 6. Quitar espacios al inicio y al final
         .str.strip_chars()
