@@ -7,7 +7,6 @@ import time
 # Gestión de directorios
 from pathlib import Path
 
-# pyrefly: ignore [missing-import]
 import numpy as np
 
 # Manipulación de datos
@@ -22,9 +21,8 @@ def load_data_own(file_path_param: str) -> pl.DataFrame | None:
 
     print(f'Iniciando carga de datos locales desde: {file_path_param}')
     inicio_tiempo = time.time()
-    
-    try:
 
+    try:
         df = (
             pl.read_csv(
                 source = Path(here(),'00_raw_data',file_path_param),
@@ -44,12 +42,12 @@ def load_data_own(file_path_param: str) -> pl.DataFrame | None:
 
     except FileNotFoundError:
         print(f"❌ Error: No se encontró el archivo en la ruta especificada ({file_path_param}).")
-        print("Asegúrate de que el archivo CSV esté en tu carpeta '00_raw_data'.")
+        print("Asegurar de que el archivo CSV esté en la carpeta '00_raw_data'.")
         return None
     except pl.exceptions.PolarsError as e:
         print(f"❌ Error de Polars al procesar el CSV: {e}")
         return None
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001 (No quality assurance - blind exception)
         print(f"❌ Error inesperado: {e}")
         return None
 
@@ -69,14 +67,14 @@ def limpiar_texto_own(column_param: str) -> pl.Expr:
         # acentos de las letras (Ej: 'á' -> 'a' + '´')
         .str.normalize('NFD')
 
-        # 3. Borramos acentos, pero NO la colita de la ñ (\u0303)
+        # 3. Borramos acentos, pero NO la línea de la ñ (\u0303)
         .str.replace_all('[\\u0300-\\u0302\\u0304-\\u036f]', '')
         
         # 4. Eliminar todo lo que NO sea letras, números o espacios
         #.str.replace_all(r"[^a-z0-9\s]", "")
         
         # 5. Reemplazar múltiples espacios por uno solo
-        .str.replace_all(r'\s+', ' ')
+        .str.replace_all('\\s+', '\\s')
         
         # 6. Quitar espacios al inicio y al final
         .str.strip_chars()
