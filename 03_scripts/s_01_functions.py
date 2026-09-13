@@ -15,6 +15,7 @@ from pyprojroot import here
 
 # =========================================================================================================
 # 02. CARGA DE DATOS
+
 # Función de carga de archivo de texto
 
 def load_data_own(file_path_param: str) -> pl.DataFrame | None:
@@ -79,6 +80,27 @@ def limpiar_texto_own(*, column_param: pl.Expr) -> pl.Expr:
         # 6. Quitar espacios al inicio y al final
         .str.strip_chars()
     )
+
+# =========================================================================================================
+# 04. VISUALIZACIÓN DE GRÁFICOS
+
+# Variables categóricas
+
+def plot_cat_function():
+
+    aux_analysis = (
+    df_02_cat
+    .get_column('category_name')
+    .value_counts(name = 'count_0', sort = True)
+    .with_columns( (pl.col('count_0') / pl.sum('count_0')).alias('ptc_0') )
+    .head(10)
+)
+
+
+    return print('Hola mundo')
+
+
+
 
 # =========================================================================================================
 # 04. MODELO DE LA CANTIDAD ECONÓMICA DEL PEDIDO (BASELINE EOQ).
