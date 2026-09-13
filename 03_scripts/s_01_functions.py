@@ -7,10 +7,14 @@ import time
 # Gestión de directorios
 from pathlib import Path
 
+# Gráficos
+import matplotlib.pyplot as plt
 import numpy as np
 
-# Manipulación de datos
+# Manipulación de datos y derivación de gráficos
 import polars as pl
+import seaborn as sns
+from matplotlib import ticker
 from pyprojroot import here
 
 # =========================================================================================================
@@ -26,7 +30,7 @@ def load_data_own(file_path_param: str) -> pl.DataFrame | None:
     try:
         df = (
             pl.read_csv(
-                source = Path(here(),'00_raw_data',file_path_param),
+                source = here()/'00_raw_data'/file_path_param,
                 has_header =  True,
                 separator = ',',
                 null_values = ['',' ','NA','na','NULL','null','None','NONE','Na'],
@@ -86,18 +90,94 @@ def limpiar_texto_own(*, column_param: pl.Expr) -> pl.Expr:
 
 # Variables categóricas
 
-def plot_cat_function():
-
-    aux_analysis = (
-    df_02_cat
-    .get_column('category_name')
+def plot_cat_function_01(
+    *,
+    df_param: pl.DataFrame,
+    column_param: str,
+    top_param: int = None,
+    suptitle_param: str,
+    text_param: str,
+    file_param: str,
+    show_param: bool = True ) -> Path:
+    
+    # 1. Tabla de frecuencias
+    aux_analysis = ( df_param
+    .get_column(column_param)
     .value_counts(name = 'count_0', sort = True)
-    .with_columns( (pl.col('count_0') / pl.sum('count_0')).alias('ptc_0') )
-    .head(10)
-)
+    .with_columns( (pl.col('count_0') / pl.sum('count_0')).alias('ptc_0')) )
 
+    if top_param is not None:
+        aux_analysis = aux_analysis.head(top_param)
 
-    return print('Hola mundo')
+    
+    # 2. Tema general con Seaborn
+    sns.set_theme( context = 'paper', style = 'white',
+    rc = {'axes.grid': True, 'grid.linestyle': '--', 'grid.alpha': 0.4})
+
+    # 3. Gráfico de barras
+    g = sns.catplot(
+        data = aux_analysis,
+        x = 'count_0',
+        y = column_param,
+        kind = 'bar',
+        color = '#DCDCDC',
+        edgecolor = '#777777',
+        alpha = 0.6,
+        height = 5, # Altura en pulgadas
+        aspect = 1.2, # Ancho = 5 * 1.2 = 6 pulgadas
+    )
+
+    # 4. Ajustes directos en el objeto FacetGrid de Seaborn
+    g.despine(left = True, bottom = False)
+    g.set_axis_labels( x_var = 'Frecuencia', y_var = '' )
+    g.figure.subplots_adjust(top = 0.90)
+
+    g.figure.suptitle(
+        suptitle_param,
+        x = 0.08,
+        y = 1.00,
+        ha = 'left',
+        weight = 'bold',
+        size = 11
+    )
+
+    g.figure.text(
+        x = 0.08,
+        y = 0.94,
+        s = text_param,
+        ha = 'left',
+        fontsize = 10,
+        color = '#666666'
+    )
+
+    # 5. Formato al eje X y etiquetas de barras
+
+    etiquetas_barras = [
+        f"{cnt:,.0f} ({pct:.1%})"
+        for cnt, pct in zip(aux_analysis['count_0'], aux_analysis['ptc_0'])
+    ]
+
+    for ax in g.axes.flat:
+        ax.xaxis.set_major_formatter(ticker.StrMethodFormatter('{x:,.0f}'))
+        ax.tick_params(axis = 'x', bottom = True, length = 4, color = '#777777')
+        ax.spines['bottom'].set_color('#777777')
+        ax.bar_label(ax.containers[0], labels = etiquetas_barras, padding = 5, fontsize = 8)
+
+    # Exportar gráfico
+    file_destiny = here() / '05_graphs' / file_param
+
+    g.figure.savefig(
+        file_destiny,
+        dpi = 300,
+        bbox_inches = 'tight',
+        facecolor = 'white'
+    )
+
+    if show_param:
+        plt.show()
+        
+    print(f'Guardado como: "{file_param}" en 05_graphs')
+    return file_destiny
 
 
 
