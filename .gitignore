@@ -1,5 +1,62 @@
+# ==========================================
+# 1. Python & Jupyter
+# ==========================================
 __pycache__/
+*.py[cod]
+*$py.class
 .ipynb_checkpoints/
-*.pyc
+
+# ==========================================
+# 2. Entornos virtuales (MUY IMPORTANTE)
+# ==========================================
+.venv/
+venv/
+env/
+ENV/
+02_environments/*
+!02_environments/.gitkeep
+!02_environments/requirements.txt
+!02_environments/environment.yml
+!02_environments/pyproject.toml
+
+# ==========================================
+# 3. Datos y archivos pesados
+# ==========================================
+# Ignorar todos los datos crudos y limpios salvo los .gitkeep
+00_raw_data/*
+!00_raw_data/.gitkeep
+01_cleaned_data/*
+!01_cleaned_data/.gitkeep
+
+# Extensiones de datos comunes
 *.csv
+*.parquet
+*.feather
+*.xlsx
+*.xls
+*.zip
+*.tar.gz
+
+# ==========================================
+# 4. Quarto (carpeta 06_quarto)
+# ==========================================
+.quarto/
+_site/
+_freeze/
+*.html_files/
+
+# ==========================================
+# 5. IDE / Editor (Positron, VS Code)
+# ==========================================
+.vscode/
+.positron/
+.Rproj.user/
+.Rhistory
+.RData
+
+# ==========================================
+# 6. Sistema operativo y temporales del proyecto
+# ==========================================
+.DS_Store
+Thumbs.db
 03_scripts/Old Versions/
