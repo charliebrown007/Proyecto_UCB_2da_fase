@@ -94,7 +94,7 @@ def plot_cat_function_01(
     *,
     df_param: pl.DataFrame,
     column_param: str,
-    top_param: int = None,
+    top_param: int | None = None,
     suptitle_param: str,
     text_param: str,
     file_param: str,
@@ -175,6 +175,8 @@ def plot_cat_function_01(
 
     if show_param:
         plt.show()
+    else:
+        plt.close(g.figure)
         
     print(f'Guardado como: "{file_param}" en 05_graphs')
     return file_destiny
