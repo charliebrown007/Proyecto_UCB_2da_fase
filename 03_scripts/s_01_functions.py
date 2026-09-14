@@ -35,7 +35,8 @@ def load_data_own(file_path_param: str) -> pl.DataFrame | None:
                 separator = ',',
                 null_values = ['',' ','NA','na','NULL','null','None','NONE','Na'],
                 encoding = 'utf8',
-                infer_schema = True
+                infer_schema = True,
+                schema_overrides={'bottle_volume_ml': pl.String}
             )
             .pipe(lambda dataframe: dataframe.select(sorted(dataframe.columns)))
         )
