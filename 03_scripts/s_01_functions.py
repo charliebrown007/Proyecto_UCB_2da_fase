@@ -89,8 +89,7 @@ def limpiar_texto_own(*, column_param: pl.Expr) -> pl.Expr:
 # =========================================================================================================
 # 04. VISUALIZACIÓN DE GRÁFICOS
 
-# Variables categóricas
-
+# Gráfico de barras para una variable categórica
 def plot_cat_function_01(
     *,
     df_param: pl.DataFrame,
@@ -183,6 +182,77 @@ def plot_cat_function_01(
     return file_destiny
 
 
+# Histograma para una varaible numérica en escala logarítmica para el eje x
+
+def plot_cat_function_02(
+    *,
+    df_param: pl.DataFrame,
+    df_var: str,
+    bins_param: int,
+    suptitle_param: str,
+    text_param: str,
+    file_param: str,
+    show_param: bool = True ) -> Path:
+
+    sns.set_theme( context = 'paper',
+        style = 'white',
+        rc = {'axes.grid': True, 'grid.linestyle': '--', 'grid.alpha': 0.3})
+
+    g = sns.displot(
+        data = df_param,
+        x = df_var,
+        kind = 'hist',
+        bins = bins_param,
+        log_scale = (True, False),       # Escala logarítmica en base 10: eje "x" y eje "y"
+        color = '#DCDCDC',
+        edgecolor = '#777777',
+        alpha = 0.5,
+        height = 5,
+        aspect = 1.2 )
+
+    g.despine(left = True, bottom = False)
+    g.set_axis_labels( x_var = 'Escala logarítmica (base 10)', y_var = 'Frecuencia' )
+    g.figure.subplots_adjust(top = 0.90)
+
+    g.figure.suptitle(
+            suptitle_param,
+            x = 0.08,
+            y = 1.00,
+            ha = 'left',
+            weight = 'bold',
+            size = 11 )
+
+    g.figure.text(
+        x = 0.08,
+        y = 0.94,
+        s = text_param,
+        ha = 'left',
+        fontsize = 10,
+        color = '#666666' )
+
+    for ax in g.axes.flat:
+        ax.xaxis.set_major_formatter(ticker.StrMethodFormatter('{x:,.0f}'))
+        ax.yaxis.set_major_formatter(ticker.StrMethodFormatter('{x:,.0f}'))
+        ax.tick_params(axis = 'x', bottom = True, length = 4, color = '#777777')
+        ax.spines['bottom'].set_color('#777777')
+
+    # Exportar gráfico
+    file_destiny = here() / '05_graphs' / file_param
+
+    g.figure.savefig(
+        file_destiny,
+        dpi = 300,
+        bbox_inches = 'tight',
+        facecolor = 'white'
+    )
+
+    if show_param:
+        plt.show()
+    else:
+        plt.close(g.figure)
+        
+    print(f'Guardado como: "{file_param}" en 05_graphs')
+    return file_destiny
 
 
 # =========================================================================================================
