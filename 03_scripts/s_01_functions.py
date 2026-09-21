@@ -6,6 +6,7 @@ import time
 
 # Gestión de directorios
 from pathlib import Path
+from typing import Literal
 
 # Gráficos
 import matplotlib.pyplot as plt
@@ -94,6 +95,7 @@ def plot_cat_function_01(
     *,
     df_param: pl.DataFrame,
     column_param: str,
+    calculate_param: Literal['count_', 'sum_bottles'] = 'count_',
     top_param: int | None = None,
     suptitle_param: str,
     text_param: str,
@@ -101,10 +103,23 @@ def plot_cat_function_01(
     show_param: bool = True ) -> Path:
     
     # 1. Tabla de frecuencias
-    aux_analysis = ( df_param
-    .get_column(column_param)
-    .value_counts(name = 'count_0', sort = True)
-    .with_columns( (pl.col('count_0') / pl.sum('count_0')).alias('ptc_0')) )
+
+    match calculate_param:
+        case 'count_':
+            aux_analysis = ( df_param
+            .get_column(column_param)
+            .value_counts(name = 'count_0', sort = True)
+            .with_columns( (pl.col('count_0') / pl.sum('count_0')).alias('ptc_0')) )
+        
+        case 'sum_bottles':
+            aux_analysis = ( df_param
+            .group_by(column_param)
+            .agg(pl.sum('sales_bottles').alias('count_0'))
+            .with_columns((pl.col('count_0') / pl.sum('count_0')).alias('ptc_0'))
+            .sort( by = ['count_0'], descending = [True]) )
+        case _:
+            raise ValueError("Criterio no válido")
+    
 
     if top_param is not None:
         aux_analysis = aux_analysis.head(top_param)
