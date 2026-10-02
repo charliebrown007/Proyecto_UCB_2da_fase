@@ -88,7 +88,53 @@ def limpiar_texto_own(*, column_param: pl.Expr) -> pl.Expr:
     )
 
 # =========================================================================================================
-# 04. VISUALIZACIÓN DE GRÁFICOS
+# 04. ESTADÍSTICOS DESCRIPPTIVOS
+
+def describe_extended(*, df_param: pl.DataFrame, col_name_param: str, by_cat_param: str) -> pl.DataFrame:
+
+    if not by_cat_param:
+        col = pl.col(col_name_param)
+        stats = (
+            df_param
+            .select(
+                count    = col.len().cast(pl.Float64),
+                nulls    = col.null_count().cast(pl.Float64),
+                mean     = col.mean(),
+                std      = col.std(),
+                cv       = (col.std() / col.mean()),
+                min      = col.min().cast(pl.Float64),
+                p25      = col.quantile(0.25),
+                median   = col.median(),
+                p75      = col.quantile(0.75),
+                p95      = col.quantile(0.95),
+                max      = col.max().cast(pl.Float64),
+                skew     = col.skew(),
+                kurtosis = col.kurtosis()) )
+        return stats.unpivot(variable_name = 'statistic', value_name = col_name_param)
+    else:
+        col = pl.col(col_name_param)
+        stats = (
+            df_param
+            .group_by(by_cat_param)
+            .select(
+                count    = col.len().cast(pl.Float64),
+                nulls    = col.null_count().cast(pl.Float64),
+                mean     = col.mean(),
+                std      = col.std(),
+                cv       = (col.std() / col.mean()),
+                min      = col.min().cast(pl.Float64),
+                p25      = col.quantile(0.25),
+                median   = col.median(),
+                p75      = col.quantile(0.75),
+                p95      = col.quantile(0.95),
+                max      = col.max().cast(pl.Float64),
+                skew     = col.skew(),
+                kurtosis = col.kurtosis()) )
+        return stats.unpivot(variable_name = 'statistic', value_name = col_name_param)
+
+
+# =========================================================================================================
+# 05. VISUALIZACIÓN DE GRÁFICOS
 
 # Gráfico de barras para una variable categórica
 def plot_cat_function_01(
@@ -269,9 +315,8 @@ def plot_cat_function_02(
     print(f'Guardado como: "{file_param}" en 05_graphs')
     return file_destiny
 
-
 # =========================================================================================================
-# 04. MODELO DE LA CANTIDAD ECONÓMICA DEL PEDIDO (BASELINE EOQ).
+# 06. MODELO DE LA CANTIDAD ECONÓMICA DEL PEDIDO (BASELINE EOQ).
 
 def eoq_baseline(
     df_demanda: pl.DataFrame, 
