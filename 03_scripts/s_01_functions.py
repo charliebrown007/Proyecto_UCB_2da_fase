@@ -2,6 +2,7 @@
 # 01. LIBRERÍAS
 
 # Medición de tiempo
+from matplotlib.pyplot import viridis
 import time
 
 # Gestión de directorios
@@ -243,9 +244,9 @@ def plot_cat_function_01(
     return file_destiny
 
 
-# Histograma para una varaible numérica en escala logarítmica para el eje x
+# Histograma para una variable numérica en escala logarítmica para el eje x
 
-def plot_cat_function_02(
+def plot_dist_function_02(
     *,
     df_param: pl.DataFrame,
     df_var: str,
@@ -314,6 +315,98 @@ def plot_cat_function_02(
         
     print(f'Guardado como: "{file_param}" en 05_graphs')
     return file_destiny
+
+# Diagrama de dispersión (scatterplot)
+
+def plot_rel_function_03(
+    *,
+    df_param: pl.DataFrame,
+    x_param: str,
+    x_title_param: str,
+    y_title_param: str,
+    y_param: str,
+    hue_param: str,
+    hue_tag_param: str,
+    suptitle_param: str,
+    text_param: str,
+    file_param: str,
+    show_param: bool = True ) -> Path:
+    
+    
+    # 1. Tema general con Seaborn
+    sns.set_theme( context = 'paper', style = 'white',
+    rc = {'axes.grid': True, 'grid.linestyle': '--', 'grid.alpha': 0.4})
+
+    # 2. Gráfico de barras
+    g = sns.relplot(
+        data = df_param,
+        x = x_param,
+        y = y_param,
+        kind = 'scatter',
+        # color = '#DCDCDC',
+        # edgecolor = '#777777',
+        # col = col_param,
+        # col_wrap = 2,
+        edgecolor = None,
+        hue = hue_param,
+        palette = 'viridis_r',
+        alpha = 0.6,
+        height = 5, # Altura en pulgadas
+        aspect = 1.2, # Ancho = 5 * 1.2 = 6 pulgadas
+    )
+
+    # 3. Ajustes directos en el objeto FacetGrid de Seaborn
+    g.despine(left = False, bottom = False)
+    g.set_axis_labels( x_var = x_title_param, y_var = y_title_param )
+    g.figure.subplots_adjust(top = 0.90)
+
+    g.figure.suptitle(
+        suptitle_param,
+        x = 0.08,
+        y = 1.00,
+        ha = 'left',
+        weight = 'bold',
+        size = 11 )
+
+    g.figure.text(
+        x = 0.08,
+        y = 0.94,
+        s = text_param,
+        ha = 'left',
+        fontsize = 10,
+        color = '#666666' )
+
+    for ax in g.axes.flat:
+        ax.xaxis.set_major_formatter(ticker.StrMethodFormatter('{x:,.0f}'))
+        ax.yaxis.set_major_formatter(ticker.StrMethodFormatter('{x:,.0f}'))
+        ax.tick_params(axis = 'both', bottom = True, left = True, length = 4, color = '#777777')
+        ax.spines['bottom'].set_color('#777777')
+        ax.spines['left'].set_color('#777777')
+
+    sns.move_legend(
+        g,
+        loc = 'upper right',
+        title = hue_tag_param )
+
+    # Exportar gráfico
+    file_destiny = here() / '05_graphs' / file_param
+
+    g.figure.savefig(
+        file_destiny,
+        dpi = 300,
+        bbox_inches = 'tight',
+        facecolor = 'white'
+    )
+
+    if show_param:
+        plt.show()
+    else:
+        plt.close(g.figure)
+        
+    print(f'Guardado como: "{file_param}" en 05_graphs')
+    return file_destiny
+
+
 
 # =========================================================================================================
 # 06. MODELO DE LA CANTIDAD ECONÓMICA DEL PEDIDO (BASELINE EOQ).
