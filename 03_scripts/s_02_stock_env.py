@@ -7,16 +7,16 @@ import polars as pl
 from gymnasium import spaces
 
 # =========================================================================================================
-# 02. ENTORNO PERSONALIZADO (v5.0 - Lead Time Estocástico / Escenario Boliviano)
+# 02. ENTORNO PERSONALIZADO (v6.0 - Escenario Crisis y Estado de Excepción Bolivia)
 
 class EntornoInventario(gym.Env):
     def __init__(self,
                  df_demanda: pl.DataFrame,
                  precio_unitario: float,
                  tamano_pack: int,
-                 max_cajas_pedido: int = 100,
+                 max_cajas_pedido: int = 1500, # Aumentado para permitir llenado rápido en ventanas de calma
                  ventana_historica: int = 7,
-                 max_capacidad_almacen: int = 3000):
+                 max_capacidad_almacen: int = 42000): # Capacidad blindada a 30 días de cobertura
         super().__init__()
         
         # 1. Carga de Datos y Constantes
@@ -30,9 +30,10 @@ class EntornoInventario(gym.Env):
         self.p = precio_unitario        
         self.pack = tamano_pack         
         self.S = 50.0                   
-        self.h = 0.20                   
-        self.k = 2.0                    
-        # Ya no usamos self.L fijo, lo calcularemos dinámicamente en cada paso
+        self.h = 0.20 
+        
+        # Penalización por demanda insatisfecha (Aumentada drásticamente para reflejar pérdidas millonarias)                  
+        self.k = 5.0  
         
         # 2. Espacios de Acción y Observación
         self.action_space = spaces.Discrete(max_cajas_pedido + 1)
@@ -66,14 +67,15 @@ class EntornoInventario(gym.Env):
         botellas_recibidas = self._procesar_pedidos_en_transito()
         self.inventario += botellas_recibidas
         
-        # --- NUEVA REGLA: LEAD TIME ESTOCÁSTICO (Simulación de Bloqueos) ---
+        # --- NUEVA REGLA: LEAD TIME ESTOCÁSTICO EXTREMO ---
         botellas_pedidas = action * self.pack
         if botellas_pedidas > 0:
-            # Definimos probabilidades basadas en un escenario logístico real:
-            # 70% de las veces llega normal (3 días)
-            # 20% de las veces hay demoras menores o clima (5 días)
-            # 10% de las veces hay un bloqueo severo en carretera (8 días)
-            tiempo_entrega_real = np.random.choice([3, 5, 8], p=[0.70, 0.20, 0.10])
+            # Distribución logística que refleja crisis de mayo/junio 2026:
+            # 75% Tránsito normal o expedito (3 días)
+            # 15% Desvíos por conflictos menores (7 días)
+            #  8% Bloqueo severo en ruta troncal (21 días)
+            #  2% Cerco y Estado de Excepción nacional (53 días)
+            tiempo_entrega_real = np.random.choice([3, 7, 21, 53], p=[0.75, 0.15, 0.08, 0.02])
             
             self.pedidos_en_transito.append({'dias_faltantes': tiempo_entrega_real, 'cantidad': botellas_pedidas})
             costo_orden = self.S
@@ -86,7 +88,7 @@ class EntornoInventario(gym.Env):
         demanda_insatisfecha = demanda_hoy - ventas_hoy
         self.inventario -= ventas_hoy
         
-        # Restricción Física
+        # Restricción Física CEDI
         exceso_inventario = max(0, self.inventario - self.max_capacidad)
         if exceso_inventario > 0:
             costo_exceso = exceso_inventario * (self.p * 0.5) 
@@ -97,9 +99,11 @@ class EntornoInventario(gym.Env):
         self.historial_demanda = np.roll(self.historial_demanda, -1)
         self.historial_demanda[-1] = demanda_hoy
         
-        # Reward Shaping
+        # Reward Shaping: Sistema de recompensas ajustado a economía de escala
         ingresos = ventas_hoy * self.p
-        costo_mantenimiento = (self.inventario ** 1.15) * self.h 
+        
+        # Ajuste de exponente de mantenimiento (1.05 en lugar de 1.15) para equilibrar gran volumen
+        costo_mantenimiento = (self.inventario ** 1.05) * self.h 
         costo_quiebre = demanda_insatisfecha * self.k
         
         recompensa = ingresos - costo_orden - costo_mantenimiento - costo_quiebre - costo_exceso

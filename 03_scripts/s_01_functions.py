@@ -412,8 +412,8 @@ def plot_rel_function_03(
 # 06. MODELO DE LA CANTIDAD ECONÓMICA DEL PEDIDO (BASELINE EOQ).
 
 def eoq_baseline(
-    df_demanda: pl.DataFrame, 
-    df_precio: pl.DataFrame, 
+    df_demanda_diaria: pl.DataFrame, 
+    df_param: pl.DataFrame, 
     dias_year: int = 365, 
     costo_pedido_S: float = 50.0, 
     tasa_mantenimiento_i: float = 0.20 ) -> float:
@@ -422,50 +422,55 @@ def eoq_baseline(
     para establecer el modelo base (baseline) de la simulación.
     
     Parámetros:
-    - df_demanda (pl.DataFrame): DataFrame con la demanda histórica diaria.
-    - df_precio (pl.DataFrame): DataFrame con el precio medio y el tamaño del pack.
-    - dias_ano (int): Días base para la anualización.
+    - df_demanda_diaria (pl.DataFrame): DataFrame con la demanda histórica diaria.
+    - df_param (pl.DataFrame): DataFrame con el precio medio y el tamaño del pack.
+    - dias_year (int): Días base para la anualización.
     - costo_pedido_S (float): Costo fijo por emitir una orden ($).
     - tasa_mantenimiento_i (float): Porcentaje anual del valor del producto para costo de inventario.
     
     Retorna:
-    - float: Cantidad de cajas a pedir sugerida por el modelo EOQ.
+    - float: Cantidad de productos a pedir sugerida por el modelo EOQ.
     '''
     
-    # 1. Extraer datos reales del producto desde los DataFrames
-    demanda_total_periodo = df_demanda['demanda_diaria'].sum()
-    precio_unitario_C = df_precio['precio_medio'][0]
-    
-    # Extraer el tamaño del pack (manejando el caso en el que venga dentro de una lista de Polars)
-    size_pack = df_precio['pack'][0]
-    if isinstance(size_pack, (list, pl.Series)):
-        size_pack = size_pack[0]
-        
+
+    # ____________________________________________________________________________________
+    # 1. Extraer parámetros relevantes
+
+    # Demanda total del producto
+    demanda_total_periodo = df_demanda_diaria['demanda_diaria'].sum()
+    # Precio de venta (que genera ingresos)
+    precio_unitario_C = df_param['precio_medio'][0]
+    # Cantidad de botellas por pack
+    size_pack = df_param['pack'][0]
+    # Días totales del horizonte de datos
+    dias_simulacion = df_demanda_diaria.height
+
+
+    # ____________________________________________________________________________________
     # 2. Calcular los componentes del EOQ
 
-    # dias_simulacion (int): Días totales del horizonte de datos.
-    dias_simulacion = df_demanda.height
-    
+    # Demanda anual del producto (D)
     demanda_anual_D = (demanda_total_periodo / dias_simulacion) * dias_year
+
+    # Costo de mantener una unidad de producto en inventario (H)
     costo_mantenimiento_H = precio_unitario_C * tasa_mantenimiento_i
 
-    # 3. Aplicar la fórmula matemática
+    # ____________________________________________________________________________________
+    # 3. Calcular el EOQ
+
     eoq_botellas = np.sqrt((2 * demanda_anual_D * costo_pedido_S) / costo_mantenimiento_H)
 
-    # 4. Convertir a la acción real del entorno (Cajas/Packs a pedir)
-    # No se pueden pedir fracciones de packs, entonces se
-    # redondeará al inmmediato superior
-    eoq_cajas = np.ceil(eoq_botellas / size_pack)
+    eoq_packs = np.ceil(eoq_botellas / size_pack)
 
     # 5. Imprimir resultados formateados
-    print('-' * 55)
+    print('-' * 62)
     print('RESULTADOS DEL MODELO BASE (EOQ)')
-    print('-' * 55)
+    print('-' * 62)
     print(f'Demanda Anual Estimada (D)       : {demanda_anual_D:,.0f} botellas')
-    print(f'Costo de Mantenimiento Anual (H) : ${costo_mantenimiento_H:,.2f} por botella')
-    print(f'Costo Fijo por Pedido (S)        : ${costo_pedido_S:,.2f}')
+    print(f'Costo de Mantenimiento Anual (H) : $ {costo_mantenimiento_H:,.2f} por botella')
+    print(f'Costo Fijo por Pedido (S)        : $ {costo_pedido_S:,.2f}')
     print(f'EOQ Óptimo Teórico               : {eoq_botellas:,.0f} botellas')
-    print(f'EOQ Ajustado a Lotes (Acción)    : {eoq_cajas:,.0f} cajas (packs de {size_pack})')
-    print('-' * 55)
+    print(f'EOQ Ajustado a "packs"           : {eoq_packs:,.0f} packs (de {size_pack} botellas) ')
+    print('-' * 62)
     
-    return eoq_cajas
+    return eoq_packs
