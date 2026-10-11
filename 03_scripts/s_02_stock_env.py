@@ -10,18 +10,24 @@ from gymnasium import spaces
 # 02. ENTORNO PERSONALIZADO (v6.0 - Escenario Crisis y Estado de Excepción Bolivia)
 
 class EntornoInventario(gym.Env):
-    def __init__(self,
-                 df_demanda: pl.DataFrame,
-                 precio_unitario: float,
-                 tamano_pack: int,
-                 max_cajas_pedido: int = 1500, # Aumentado para permitir llenado rápido en ventanas de calma
-                 ventana_historica: int = 7,
-                 max_capacidad_almacen: int = 42000): # Capacidad blindada a 30 días de cobertura
+
+    # MÉTODO CONSTRUCTOR
+    def __init__(
+        self,
+        df_demanda_diaria: pl.DataFrame,
+        precio_unitario: float,
+        tamano_pack: int,
+        max_cajas_pedido: int = 1500,
+        ventana_historica: int = 7,
+        max_capacidad_almacen: int = 42000):
+
+        # ___________________________________________________________________________________
+        # 1. Referencia a la clase padre para estructura de un entorno estándar de Gymnasium
         super().__init__()
         
-        # 1. Carga de Datos y Constantes
-        self.demanda_diaria = df_demanda['demanda_diaria'].to_numpy()
-        self.dia_semana = df_demanda['dia_semana'].to_numpy() 
+        # 2. Carga de Datos y Constantes
+        self.demanda_diaria = df_demanda_diaria['demanda_diaria'].to_numpy()
+        self.dia_semana = df_demanda_diaria['dia_semana'].to_numpy() 
         self.dias_totales = len(self.demanda_diaria)
         
         self.ventana_historica = ventana_historica
@@ -32,11 +38,18 @@ class EntornoInventario(gym.Env):
         self.S = 50.0                   
         self.h = 0.20 
         
-        # Penalización por demanda insatisfecha (Aumentada drásticamente para reflejar pérdidas millonarias)                  
+        # Penalización por demanda insatisfecha                  
         self.k = 5.0  
         
+        # ___________________________________________________________________________________
         # 2. Espacios de Acción y Observación
+
+        # Lo que la IA puede hacer
+        # Número entero entre 0 y 1500 (Capacidad de orden por packs)
         self.action_space = spaces.Discrete(max_cajas_pedido + 1)
+
+        # Lo que la IA puede ver ante sde decidir
+        # Lista de números continuos
         self.observation_space = spaces.Box(
             low = 0.0,
             high = np.inf,
@@ -46,14 +59,16 @@ class EntornoInventario(gym.Env):
         self.dia_actual = 0
         self.inventario = 0
         self.pedidos_en_transito = []
-        self.historial_demanda = np.zeros(self.ventana_historica, dtype=np.float32)
+        self.historial_demanda = np.zeros(self.ventana_historica, dtype = np.float32)
 
+
+    # REINICIAR EL ENTORNO
     def reset(self, seed = None, options = None):
         super().reset(seed = seed)
         self.dia_actual = 0
         self.inventario = 0  
         self.pedidos_en_transito = []
-        self.historial_demanda = np.zeros(self.ventana_historica, dtype=np.float32)
+        self.historial_demanda = np.zeros(self.ventana_historica, dtype = np.float32)
         
         estado_inicial = np.concatenate((
             [self.inventario], 
@@ -62,12 +77,17 @@ class EntornoInventario(gym.Env):
         )).astype(np.float32)
         
         return estado_inicial, {}
-        
+    
+
+    # SIMULAR EL PASO DE UN DÍA
     def step(self, action):
+
+
+        # ___________________________________________________________________________________
+        # 1. Reccepción de mercadería
         botellas_recibidas = self._procesar_pedidos_en_transito()
         self.inventario += botellas_recibidas
         
-        # --- NUEVA REGLA: LEAD TIME ESTOCÁSTICO EXTREMO ---
         botellas_pedidas = action * self.pack
         if botellas_pedidas > 0:
             # Distribución logística que refleja crisis de mayo/junio 2026:
@@ -81,7 +101,9 @@ class EntornoInventario(gym.Env):
             costo_orden = self.S
         else:
             costo_orden = 0.0
-            
+        
+        # ___________________________________________________________________________________
+        # 1. Reccepción de mercadería
         # Ventas y Quiebres
         demanda_hoy = self.demanda_diaria[self.dia_actual]
         ventas_hoy = min(self.inventario, demanda_hoy)
@@ -99,15 +121,16 @@ class EntornoInventario(gym.Env):
         self.historial_demanda = np.roll(self.historial_demanda, -1)
         self.historial_demanda[-1] = demanda_hoy
         
-        # Reward Shaping: Sistema de recompensas ajustado a economía de escala
+        # ___________________________________________________________________________________
+        # 3. Función objetivo
         ingresos = ventas_hoy * self.p
-        
-        # Ajuste de exponente de mantenimiento (1.05 en lugar de 1.15) para equilibrar gran volumen
         costo_mantenimiento = (self.inventario ** 1.05) * self.h 
         costo_quiebre = demanda_insatisfecha * self.k
-        
         recompensa = ingresos - costo_orden - costo_mantenimiento - costo_quiebre - costo_exceso
-        
+
+
+        # ___________________________________________________________________________________
+        # 4. Cierre del día
         self.dia_actual += 1
         terminado = bool(self.dia_actual >= self.dias_totales)
         truncado = False
@@ -128,6 +151,7 @@ class EntornoInventario(gym.Env):
         
         return siguiente_estado, recompensa, terminado, truncado, info
 
+    # PROCESAR PEDIDOS EN TRÁNSITO 
     def _procesar_pedidos_en_transito(self):
         recibidos_hoy = 0
         pedidos_actualizados = []
