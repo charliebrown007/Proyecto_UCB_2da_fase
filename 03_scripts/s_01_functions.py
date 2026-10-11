@@ -2,8 +2,8 @@
 # 01. LIBRERÍAS
 
 # Medición de tiempo
+from glob import glob
 from matplotlib.pyplot import viridis
-import time
 
 # Gestión de directorios
 from pathlib import Path
@@ -18,21 +18,21 @@ import polars as pl
 import seaborn as sns
 from matplotlib import ticker
 from pyprojroot import here
+import glob
 
 # =========================================================================================================
 # 02. CARGA DE DATOS
 
 # Función de carga de archivo de texto
 
-def load_data_own(file_path_param: str) -> pl.DataFrame | None:
+def load_data_own(file_folder_param: str) -> pl.LazyFrame | None:
 
-    print(f'Iniciando carga de datos locales desde: {file_path_param}')
-    inicio_tiempo = time.time()
+    print(f'Iniciando carga de datos locales desde: {file_folder_param}')
 
     try:
         df = (
-            pl.read_csv(
-                source = here()/'00_raw_data'/file_path_param,
+            pl.scan_csv(
+                source = file_folder_param,
                 has_header =  True,
                 separator = ',',
                 null_values = ['',' ','NA','na','NULL','null','None','NONE','Na'],
@@ -40,22 +40,17 @@ def load_data_own(file_path_param: str) -> pl.DataFrame | None:
                 infer_schema = True,
                 schema_overrides = {'bottle_volume_ml': pl.String, 'store_no': pl.String}
             )
-            .pipe(lambda dataframe: dataframe.select(sorted(dataframe.columns)))
         )
-        
-        tiempo_carga = time.time() - inicio_tiempo
-        print(f'Carga completada: {df.height} registros en {tiempo_carga:.2f} segundos.')
         
         return df
 
-    except FileNotFoundError:
-        print(f"❌ Error: No se encontró el archivo en la ruta especificada ({file_path_param}).")
-        print("Asegurar de que el archivo CSV esté en la carpeta '00_raw_data'.")
+    except (FileNotFoundError, pl.exceptions.ComputeError):
+        print(f"❌ Error: No se encontró la ruta o archivos en: ({file_folder_param}).")
         return None
     except pl.exceptions.PolarsError as e:
         print(f"❌ Error de Polars al procesar el CSV: {e}")
         return None
-    except Exception as e:  # noqa: BLE001 (No quality assurance - blind exception)
+    except Exception as e:  # noqa: BLE001
         print(f"❌ Error inesperado: {e}")
         return None
 
