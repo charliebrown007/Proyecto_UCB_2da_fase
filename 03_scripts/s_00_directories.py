@@ -7,7 +7,7 @@ directories = [
     '01_cleaned_data',
     '02_environments', 
     '03_scripts',
-    '04_tables',
+    '04_tables_models',
     '05_graphs',
     '06_quarto' ]
 

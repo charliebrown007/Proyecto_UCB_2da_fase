@@ -85,7 +85,6 @@ class EntornoInventario(gym.Env):
     # SIMULAR EL PASO DE UN DÍA
     def step(self, action):
 
-
         # ___________________________________________________________________________________
         # 1. Reccepción de mercadería
         botellas_recibidas = self._procesar_pedidos_en_transito()
