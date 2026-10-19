@@ -7,48 +7,51 @@ import polars as pl
 from gymnasium import spaces
 
 # =========================================================================================================
-# 02. ENTORNO PERSONALIZADO (v6.0 - Escenario Crisis y Estado de Excepción Bolivia)
+# 02. ENTORNO PERSONALIZADO
 
 class EntornoInventario(gym.Env):
 
+
+    # ======================================================================================================
     # MÉTODO CONSTRUCTOR
     def __init__(
         self,
         df_demanda_diaria: pl.DataFrame,
         precio_unitario: float,
-        tamano_pack: int,
-        max_cajas_pedido: int = 1500,
-        ventana_historica: int = 7,
-        max_capacidad_almacen: int = 42000):
+        tamano_pack: int ):
 
         # ___________________________________________________________________________________
-        # 1. Referencia a la clase padre para estructura de un entorno estándar de Gymnasium
+        # 1. Referencia a la clase padre para estructurar de un entorno estándar de Gymnasium
         super().__init__()
         
-        # 2. Carga de Datos y Constantes
-        self.demanda_diaria = df_demanda_diaria['demanda_diaria'].to_numpy()
+        # ___________________________________________________________________________________
+        # 2. Fuente de demanda
+        self.demanda_diaria = df_demanda_diaria['demanda_diaria'].to_numpy() # Cantidad de botellas demandadas
+        self.p = precio_unitario # Precio de venta (fuente de ingresos)
+
+        # ___________________________________________________________________________________
+        # 3. Fuente de diseño logístico y heurística
+        self.pack = tamano_pack        # Cantidad de botellas por pack
+        self.ventana_historica = 7     # Profundidad del espacio de observación
+        self.max_capacidad = 42000     # Capacidad del almacen
+        self.max_cajas_pedido = 1500   # Máxima cantidad de "packs" a pedir por orden
+        self.S = 50.0                  # Costo administrativo de emitir una compra (dólares)
+        self.h = 0.20                  # Tasa de costo de mantenimiento
+        self.k = 5.0                   # Penalización por demanda insatisfecha (quiebre)
+
+        # ___________________________________________________________________________________
+        # 4. Fuente de soporte
         self.dia_semana = df_demanda_diaria['dia_semana'].to_numpy() 
         self.dias_totales = len(self.demanda_diaria)
         
-        self.ventana_historica = ventana_historica
-        self.max_capacidad = max_capacidad_almacen 
-        
-        self.p = precio_unitario        
-        self.pack = tamano_pack         
-        self.S = 50.0                   
-        self.h = 0.20 
-        
-        # Penalización por demanda insatisfecha                  
-        self.k = 5.0  
-        
         # ___________________________________________________________________________________
-        # 2. Espacios de Acción y Observación
+        # 5. Espacios de Acción y Observación
 
         # Lo que la IA puede hacer
         # Número entero entre 0 y 1500 (Capacidad de orden por packs)
-        self.action_space = spaces.Discrete(max_cajas_pedido + 1)
+        self.action_space = spaces.Discrete(self.max_cajas_pedido + 1)
 
-        # Lo que la IA puede ver ante sde decidir
+        # Lo que la IA puede ver antes de decidir
         # Lista de números continuos
         self.observation_space = spaces.Box(
             low = 0.0,
@@ -61,7 +64,7 @@ class EntornoInventario(gym.Env):
         self.pedidos_en_transito = []
         self.historial_demanda = np.zeros(self.ventana_historica, dtype = np.float32)
 
-
+    # ======================================================================================================
     # REINICIAR EL ENTORNO
     def reset(self, seed = None, options = None):
         super().reset(seed = seed)
@@ -74,11 +77,11 @@ class EntornoInventario(gym.Env):
             [self.inventario], 
             self.historial_demanda, 
             [self.dia_semana[self.dia_actual]]
-        )).astype(np.float32)
+            )).astype(np.float32)
         
         return estado_inicial, {}
     
-
+    # ======================================================================================================
     # SIMULAR EL PASO DE UN DÍA
     def step(self, action):
 
