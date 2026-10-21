@@ -409,9 +409,7 @@ def plot_rel_function_03(
 def eoq_baseline(
     df_demanda_diaria: pl.DataFrame, 
     df_param: pl.DataFrame, 
-    dias_year: int = 365, 
-    costo_pedido_S: float = 50.0, 
-    tasa_mantenimiento_i: float = 0.20 ) -> float:
+    dias_year: int = 365 ) -> float:
     '''
     Calcula la Cantidad Económica de Pedido (EOQ) ajustada a lotes (cajas) 
     para establecer el modelo base (baseline) de la simulación.
@@ -431,6 +429,10 @@ def eoq_baseline(
     # ____________________________________________________________________________________
     # 1. Extraer parámetros relevantes
 
+    # Costo de realizar un pedido
+    costo_pedido_S = 50.0
+    # Tasa de costo de mantenimineto
+    tasa_mantenimiento_i= 0.20
     # Demanda total del producto
     demanda_total_periodo = df_demanda_diaria['demanda_diaria'].sum()
     # Precio de venta (que genera ingresos)
