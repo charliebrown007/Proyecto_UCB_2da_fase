@@ -76,8 +76,7 @@ class EntornoInventario(gym.Env):
         estado_inicial = np.concatenate((
             [self.inventario], 
             self.historial_demanda, 
-            [self.dia_semana[self.dia_actual]]
-            )).astype(np.float32)
+            [self.dia_semana[self.dia_actual]] )).astype(np.float32)
         
         return estado_inicial, {}
     

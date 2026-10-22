@@ -406,68 +406,57 @@ def plot_rel_function_03(
 # =========================================================================================================
 # 06. MODELO DE LA CANTIDAD ECONÓMICA DEL PEDIDO (BASELINE EOQ).
 
-def eoq_baseline(
+def eoq_rop_baseline(
     df_demanda_diaria: pl.DataFrame, 
-    df_param: pl.DataFrame, 
-    dias_year: int = 365 ) -> float:
+    precio_u_param: float,
+    pack_param: int,
+    costo_pedido_S: float = 50.0,
+    tasa_mantenimiento_i: float = 0.20,
+    dias_year: int = 365,
+    lead_time_dias: int = 10,        # Días que tarda el camión en llegar
+    nivel_confianza_z: float = 1.65  # Valor Z para 95% de nivel de servicio
+) -> tuple[int, int]:
     '''
-    Calcula la Cantidad Económica de Pedido (EOQ) ajustada a lotes (cajas) 
-    para establecer el modelo base (baseline) de la simulación.
-    
-    Parámetros:
-    - df_demanda_diaria (pl.DataFrame): DataFrame con la demanda histórica diaria.
-    - df_param (pl.DataFrame): DataFrame con el precio medio y el tamaño del pack.
-    - dias_year (int): Días base para la anualización.
-    - costo_pedido_S (float): Costo fijo por emitir una orden ($).
-    - tasa_mantenimiento_i (float): Porcentaje anual del valor del producto para costo de inventario.
-    
-    Retorna:
-    - float: Cantidad de productos a pedir sugerida por el modelo EOQ.
+    Calcula la Cantidad Económica de Pedido (EOQ) en lotes y el 
+    Punto de Reorden (ROP) estadístico para el modelo base (baseline).
     '''
     
-
-    # ____________________________________________________________________________________
-    # 1. Extraer parámetros relevantes
-
-    # Costo de realizar un pedido
-    costo_pedido_S = 50.0
-    # Tasa de costo de mantenimineto
-    tasa_mantenimiento_i= 0.20
-    # Demanda total del producto
-    demanda_total_periodo = df_demanda_diaria['demanda_diaria'].sum()
-    # Precio de venta (que genera ingresos)
-    precio_unitario_C = df_param['precio_medio'][0]
-    # Cantidad de botellas por pack
-    size_pack = df_param['pack'][0]
-    # Días totales del horizonte de datos
+    # ---------------------------------------------------------
+    # 1. CÁLCULO DEL EOQ (Cantidad a pedir)
+    # ---------------------------------------------------------
+    demanda_total_periodo = df_demanda_diaria['sales_bottles'].sum()
     dias_simulacion = df_demanda_diaria.height
 
-
-    # ____________________________________________________________________________________
-    # 2. Calcular los componentes del EOQ
-
-    # Demanda anual del producto (D)
     demanda_anual_D = (demanda_total_periodo / dias_simulacion) * dias_year
-
-    # Costo de mantener una unidad de producto en inventario (H)
-    costo_mantenimiento_H = precio_unitario_C * tasa_mantenimiento_i
-
-    # ____________________________________________________________________________________
-    # 3. Calcular el EOQ
+    costo_mantenimiento_H = precio_u_param * tasa_mantenimiento_i
 
     eoq_botellas = np.sqrt((2 * demanda_anual_D * costo_pedido_S) / costo_mantenimiento_H)
+    eoq_packs = int(np.ceil(eoq_botellas / pack_param))
 
-    eoq_packs = np.ceil(eoq_botellas / size_pack)
+    # ---------------------------------------------------------
+    # 2. CÁLCULO DEL ROP (Punto de Reorden con Stock de Seguridad)
+    # ---------------------------------------------------------
+    demanda_diaria_promedio = df_demanda_diaria['sales_bottles'].mean()
+    desviacion_diaria = df_demanda_diaria['sales_bottles'].std()
 
-    # 5. Imprimir resultados formateados
+    # Stock de Seguridad = Z * Desviación_Estándar * sqrt(Lead_Time)
+    stock_seguridad = nivel_confianza_z * desviacion_diaria * np.sqrt(lead_time_dias)
+    
+    # ROP = (Demanda Diaria * Lead Time) + Stock de Seguridad
+    rop_botellas = (demanda_diaria_promedio * lead_time_dias) + stock_seguridad
+    rop_botellas_redondeado = int(np.ceil(rop_botellas))
+
+    # ---------------------------------------------------------
+    # 3. CONSOLA Y RETORNO
+    # ---------------------------------------------------------
     print('-' * 62)
-    print('RESULTADOS DEL MODELO BASE (EOQ)')
+    print('RESULTADOS DEL MODELO TEÓRICO (EOQ + ROP)')
     print('-' * 62)
-    print(f'Demanda Anual Estimada (D)       : {demanda_anual_D:,.0f} botellas')
-    print(f'Costo de Mantenimiento Anual (H) : $ {costo_mantenimiento_H:,.2f} por botella')
-    print(f'Costo Fijo por Pedido (S)        : $ {costo_pedido_S:,.2f}')
-    print(f'EOQ Óptimo Teórico               : {eoq_botellas:,.0f} botellas')
-    print(f'EOQ Ajustado a "packs"           : {eoq_packs:,.0f} packs (de {size_pack} botellas) ')
+    print(f'EOQ Ajustado a Lotes (Q*) : {eoq_packs:,.0f} packs')
+    print(f'Punto de Reorden (ROP)    : {rop_botellas_redondeado:,.0f} botellas')
+    print(f'  ↳ Demanda durante viaje : {(demanda_diaria_promedio * lead_time_dias):,.0f} botellas')
+    print(f'  ↳ Stock de Seguridad    : {stock_seguridad:,.0f} botellas')
     print('-' * 62)
     
-    return eoq_packs
+    # Devuelve la tupla con ambos valores
+    return eoq_packs, rop_botellas_redondeado
