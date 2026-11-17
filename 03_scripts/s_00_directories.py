@@ -9,7 +9,7 @@ directories = [
     '03_scripts',
     '04_tables_models',
     '05_graphs',
-    '06_quarto' ]
+    '06_streamlit' ]
 
 # 2. Crear las carpetas
 for folder in directories:
