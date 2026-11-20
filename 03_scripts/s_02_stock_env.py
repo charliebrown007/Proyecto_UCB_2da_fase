@@ -33,7 +33,7 @@ class EntornoInventario(gym.Env):
         # 3. Fuente de diseño logístico y heurística
         self.pack = tamano_pack        # Cantidad de botellas por pack
         self.ventana_historica = 7     # Profundidad del espacio de observación
-        self.max_capacidad = 42000     # Capacidad del almacen
+        self.max_capacidad = 42000     # Capacidad del almacén
         self.max_cajas_pedido = 1500   # Máxima cantidad de "packs" a pedir por orden
         self.S = 50.0                  # Costo administrativo de emitir una compra (dólares)
         self.h = 0.20                  # Tasa de costo de mantenimiento
@@ -56,6 +56,7 @@ class EntornoInventario(gym.Env):
         self.observation_space = spaces.Box(
             low = 0.0,
             high = np.inf,
+            # Invetario actual + ventana histórica + día de la semana 
             shape = (1 + self.ventana_historica + 1,), 
             dtype = np.float32 )
         
@@ -96,7 +97,7 @@ class EntornoInventario(gym.Env):
             # 15% Desvíos por conflictos menores (7 días)
             #  8% Bloqueo severo en ruta troncal (21 días)
             #  2% Cerco y Estado de Excepción nacional (53 días)
-            tiempo_entrega_real = np.random.choice([3, 7, 21, 53], p=[0.75, 0.15, 0.08, 0.02])
+            tiempo_entrega_real = np.random.choice([3, 7, 21, 53], p = [0.75, 0.15, 0.08, 0.02])
             
             self.pedidos_en_transito.append({'dias_faltantes': tiempo_entrega_real, 'cantidad': botellas_pedidas})
             costo_orden = self.S
